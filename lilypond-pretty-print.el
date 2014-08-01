@@ -36,9 +36,8 @@
           (setq time-passed (/ (* 32 (car (get-beat)))
                                (cadr (get-beat))))
           (when time-passed
-            (while (> time-passed (- (current-column) indentation-column))
-              (insert " ")))))))
-  ;; make-string LENGTH INIT
+            (insert (make-string (+ (- time-passed (current-column))
+                                    indentation-column) ?\s)))))))
   (forward-line))
 
 (defun lilypond-beat-remove ()
