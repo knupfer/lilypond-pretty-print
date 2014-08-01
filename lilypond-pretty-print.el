@@ -20,26 +20,6 @@
 
 ;;; Code:
 
-(defun lilypond-pretty-print ()
-  (interactive)
-  (save-excursion
-    (indent-according-to-mode)
-    (back-to-indentation)
-    (when (re-search-forward "[^ ]\\( *| *$\\)" (line-end-position) t)
-      (replace-match " |" nil nil nil 1)
-      (back-to-indentation)
-      (let ((time-passed nil)
-            (indentation-column (current-column)))
-        (while (re-search-forward " +" (line-end-position) t)
-          (goto-char (match-end 0))
-          (replace-match " ")
-          (setq time-passed (/ (* 32 (car (get-beat)))
-                               (cadr (get-beat))))
-          (when time-passed
-            (insert (make-string (+ (- time-passed (current-column))
-                                    indentation-column) ?\s)))))))
-  (forward-line))
-
 (defun lilypond-beat-remove ()
   (dolist (ov (lilypond-beat--active-overlays))
     (delete-overlay ov)))
@@ -52,7 +32,25 @@
                     ov))
              (overlays-in (point-min) (point-max)))))
 
+(defun lilypond-string (begin times size)
+  (let ((result nil))
+    (while (> times 0)
+      (cond ((= (mod begin size) 0)
+             (setq result (concat result "|")))
+            ((= (mod begin size) (/ size 4))
+             (setq result (concat result ".")))
+            ((= (mod begin size) (/ size 2))
+             (setq result (concat result "+")))
+            ((= (mod begin size) (/ (* size 3) 4))
+             (setq result (concat result ".")))
+            (t
+             (setq result (concat result " "))))
+      (setq begin (+ 1 begin)
+            times (- times 1)))
+    result))
+
 (defun lilypond-beat-show ()
+  (interactive)
   (unless (active-minibuffer-window)
     (save-excursion
       (goto-char (window-start))
@@ -62,18 +60,30 @@
                 (local-count 0)
                 (increment 4))
             (back-to-indentation)
-            (while (and (eq line (line-number-at-pos))
-                        (< (+ increment (point)) (window-end)))
-              (cond ((= (mod local-count 4) 0)
-                     (lilypond--make-overlay (point) "|"))
-                    ((= (mod local-count 4) 2)
-                     (lilypond--make-overlay (point) "+"))
-                    ((= (mod local-count 4) 1)
-                     (lilypond--make-overlay (point) "."))
-                    ((= (mod local-count 4) 3)
-                     (lilypond--make-overlay (point) ".")))
-              (setq local-count (+ 1 local-count))
-              (forward-char increment))))))))
+            (let ((time-passed nil)
+                  (indentation-column (current-column))
+                  (ov-count 0)
+                  (size 16))
+              (while (re-search-forward " +" (line-end-position) t)
+                (setq time-passed (/ (* size 4 (car (get-beat)))
+                                     (cadr (get-beat))))
+                (when (and time-passed
+                           (< 0 (+ indentation-column
+                                   (- time-passed
+                                      ov-count
+                                      (current-column)))))
+                  (lilypond--make-overlay
+                   (+ -1 (point))
+                   (lilypond-string (- (+ ov-count (current-column))
+                                       indentation-column)
+                                    (+ indentation-column
+                                       (- time-passed
+                                          ov-count
+                                          (current-column)))
+                                    size))
+                  (setq ov-count
+                        (+ indentation-column
+                           (- time-passed (current-column)))))))))))))
 
 (defun lilypond--make-overlay (line symbol)
   "draw line at (line, col)"
@@ -81,7 +91,7 @@
     (save-excursion
       (goto-char line)
       (when (looking-at " ")
-        (setq prop 'display
+        (setq prop 'after-string
               ov (make-overlay (point) (+ 1 (point))))
         (when ov
           (overlay-put
@@ -92,11 +102,7 @@
 
 (define-minor-mode lilypond-pretty-beat-mode
   :init-value nil
-  :lighter ".+.|.+."
-  :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "M-q")
-              'lilypond-pretty-print)
-            map)
+  :lighter "| . |"
   :global nil
   (if lilypond-pretty-beat-mode
       (progn
