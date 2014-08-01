@@ -33,7 +33,7 @@
       (while (re-search-forward " +" (line-end-position) t)
         (goto-char (match-end 0))
         (replace-match " ")
-        (setq time-passed (/ (* 33 (car (get-beat)))
+        (setq time-passed (/ (* 32 (car (get-beat)))
                              (cadr (get-beat))))
         (when time-passed
           (while (> time-passed (- (current-column) indentation-column))
@@ -57,7 +57,7 @@
   (unless (active-minibuffer-window)
     (save-excursion
       (goto-char (window-start))
-      (while (re-search-forward "|" (window-end) t)
+      (while (re-search-forward "| *$" (window-end) t)
         (save-excursion
           (let ((line (line-number-at-pos))
                 (local-count 0)
@@ -89,7 +89,7 @@
            ov 'category 'lily-pretty)
           (overlay-put
            ov prop
-           (propertize symbol 'face 'warning)))))))
+           (propertize symbol 'face 'font-lock-comment-delimiter-face)))))))
 
 (define-minor-mode lilypond-pretty-beat-mode
   :init-value nil
