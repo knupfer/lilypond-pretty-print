@@ -20,6 +20,26 @@
 
 ;;; Code:
 
+(defun lilypond-pretty-print ()
+  (interactive)
+  (save-excursion
+    (indent-according-to-mode)
+    (back-to-indentation)
+    (when (re-search-forward "[^ ]\\([| ]*$\\)" (line-end-position) t)
+      (replace-match " |" nil nil nil 1)
+      (back-to-indentation))
+    (let ((time-passed nil)
+          (indentation-column (current-column)))
+      (while (re-search-forward " +" (line-end-position) t)
+        (goto-char (match-end 0))
+        (replace-match " ")
+        (setq time-passed (/ (* 33 (car (get-beat)))
+                             (cadr (get-beat))))
+        (when time-passed
+          (while (> time-passed (- (current-column) indentation-column))
+            (insert " "))))))
+  (forward-line))
 
+(provide 'lilypond-pretty-print)
 
 ;;; lilypond-pretty-print.el ends here
