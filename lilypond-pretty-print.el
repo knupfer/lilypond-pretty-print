@@ -22,6 +22,7 @@
 
 (defvar lilypond-mode-line " ♫")
 (defvar lilypond-fill-column 72)
+(defvar lilypond-pretty-print-size)
 
 (defun lilypond-beat-remove (&optional begin-of-change end-of-change zonk)
   (dolist (ov (lilypond-beat--active-overlays begin-of-change end-of-change))
@@ -91,7 +92,7 @@
       (setq-local lilypond-pretty-print-size
                   (/ (* lilypond-fill-column 144) lilypond-measure-length))
       (while (re-search-forward "| *$" nil t)
-        (when (= (random 10) 0)
+        (when (= (random 20) 0)
           (setq lilypond-mode-line (propertize (concat " scan: " (number-to-string (/ (* 100 (point)) (point-max))) "%%") 'face 'warning))
           (redisplay))
         (save-excursion
@@ -136,7 +137,7 @@
             (forward-line)))
         (while (re-search-forward "| *$" win-max t)
           (when (and (eq zonk 1)
-                     (= (random 10) 0))
+                     (= (random 20) 0))
             (redisplay)
             (setq lilypond-mode-line
                   (propertize (concat " draw: " (number-to-string
