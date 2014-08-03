@@ -20,6 +20,9 @@
 
 ;;; Code:
 
+
+(defvar lilypond-pretty-print-size 16)
+
 (defun lilypond-beat-remove ()
   (dolist (ov (lilypond-beat--active-overlays))
     (delete-overlay ov)))
@@ -32,22 +35,43 @@
                     ov))
              (overlays-in (point-min) (point-max)))))
 
-(defun lilypond-string (begin times size)
+(defun lilypond-string (begin times)
   (let ((result nil))
     (while (> times 0)
-      (cond ((= (mod begin size) 0)
-             (setq result (concat result "|")))
-            ((= (mod begin size) (/ size 4))
-             (setq result (concat result ".")))
-            ((= (mod begin size) (/ size 2))
-             (setq result (concat result "+")))
-            ((= (mod begin size) (/ (* size 3) 4))
-             (setq result (concat result ".")))
-            (t
-             (setq result (concat result " "))))
+      (let ((col (lilypond-make-hex (elt times-used
+                                         (min (- (length times-used) 1)
+                                              begin)))))
+        (setq result (concat result (propertize "•"
+                                                'face `'(:foreground ,col)))))
       (setq begin (+ 1 begin)
             times (- times 1)))
     result))
+
+(defun lilypond-analyse-metrum ()
+  (interactive)
+  (setq times-used (make-vector 128 0))
+  (let ((time-passed 0)
+        (size lilypond-pretty-print-size))
+    (save-excursion
+      (goto-char (point-min))
+      (re-search-forward "| *$" nil t)
+      (while (re-search-forward "| *$" nil t)
+        (save-excursion
+          (back-to-indentation)
+          (while (re-search-forward " +" (line-end-position) t)
+            (when (and (not (looking-at "r"))
+                       (not (= time-passed (/ (* size 4 (car (get-beat)))
+                                              (cadr (get-beat)))))
+                       (< (/ (* size 4 (car (get-beat)))
+                             (cadr (get-beat))) 128))
+              (setq time-passed (/ (* size 4 (car (get-beat)))
+                                   (cadr (get-beat))))
+              (aset times-used time-passed (+ 1 (elt times-used time-passed)))))
+          (aset times-used time-passed (+ -1 (elt times-used time-passed)))))))
+  (let ((beat-max 1))
+    (mapc (lambda (x) (setq beat-max (max beat-max (* x x)))) times-used)
+    (setq times-used
+          (map 'vector (lambda (y) (max 0 (/ (* 255 (* y y)) beat-max))) times-used))))
 
 (defun lilypond-beat-show ()
   (interactive)
@@ -70,7 +94,7 @@
             (let ((time-passed nil)
                   (indentation-column (current-column))
                   (ov-count 0)
-                  (size 16)
+                  (size lilypond-pretty-print-size)
                   (current-pos nil))
               (while (re-search-forward " +" (line-end-position) t)
                 (setq time-passed (/ (* size 4 (car (get-beat)))
@@ -93,15 +117,21 @@
                                     (+ indentation-column
                                        (- time-passed
                                           ov-count
-                                          (current-column)))
-                                    size))
+                                          (current-column)))))
                   (setq ov-count
                         (+ indentation-column
                            (- time-passed (current-column)))))))))))))
 
+(defun lilypond-make-hex (col)
+  (format "#%02X%02X%02X" (round col) (round (/ col 2)) (round col)))
+
 (defun lilypond--make-overlay (line symbol)
   "draw line at (line, col)"
-  (let ((original-pos (point)) ov prop)
+  (setq foo-test symbol)
+  (let ((original-pos (point))
+        (color (lilypond-make-hex (random 200)))
+        ov prop)
+
     (save-excursion
       (goto-char line)
       (when (looking-at " ")
@@ -110,9 +140,7 @@
         (when ov
           (overlay-put
            ov 'category 'lily-pretty)
-          (overlay-put
-           ov prop
-           (propertize symbol 'face 'font-lock-comment-delimiter-face)))))))
+          (overlay-put ov prop symbol))))))
 
 (define-minor-mode lilypond-pretty-beat-mode
   :init-value nil
