@@ -23,17 +23,27 @@
 
 (defvar lilypond-fill-column 72)
 
-(defun lilypond-beat-remove ()
-  (dolist (ov (lilypond-beat--active-overlays))
+(defun lilypond-beat-remove (&optional begin-of-change end-of-change zonk)
+  (dolist (ov (lilypond-beat--active-overlays begin-of-change end-of-change))
     (delete-overlay ov)))
 
-(defun lilypond-beat--active-overlays ()
-  (delq nil (mapcar
-             (lambda (ov)
-               (and (eq (overlay-get ov 'category)
-                        'lily-pretty)
-                    ov))
-             (overlays-in (point-min) (point-max)))))
+(defun lilypond-beat--active-overlays (&optional begin-of-change end-of-change)
+  (let ((del-from (point-min))
+        (del-to (point-max)))
+    (when (and begin-of-change end-of-change)
+      (save-excursion
+        (goto-char begin-of-change)
+        (beginning-of-line)
+        (setq del-from (point))
+        (goto-char end-of-change)
+        (end-of-line)
+        (setq del-to (point))))
+    (delq nil (mapcar
+               (lambda (ov)
+                 (and (eq (overlay-get ov 'category)
+                          'lily-pretty)
+                      ov))
+               (overlays-in del-from del-to)))))
 
 (defun lilypond-string (begin times)
   (let ((result nil))
@@ -102,52 +112,60 @@
           (map 'vector (lambda (y) (max 0 (/ (* 255 (* y y))
                                              beat-max))) times-used))))
 
-(defun lilypond-beat-show ()
+(defun lilypond-beat-show (&optional begin-of-change end-of-change zonk)
   (unless (active-minibuffer-window)
     (save-excursion
-      (let ((win-min (window-start)))
+      (let ((win-min (window-start))
+            (win-max (window-end)))
+        (when (and begin-of-change end-of-change)
+          (goto-char begin-of-change)
+          (beginning-of-line)
+          (setq win-min (point))
+          (goto-char end-of-change)
+          (end-of-line)
+          (setq win-max (point)))
         (goto-char (point-min))
         (re-search-forward "| *$" nil t)
         (if (< (point) win-min)
             (goto-char win-min)
-          (if (> (point) (window-end))
+          (if (> (point) win-max)
               (error "no bar")
-            (forward-line))))
-      (while (re-search-forward "| *$" (window-end) t)
-        (save-excursion
-          (let ((line (line-number-at-pos))
-                (local-count 0)
-                (increment 4))
-            (back-to-indentation)
-            (let ((time-passed nil)
-                  (indentation-column (current-column))
-                  (ov-count 0)
-                  (current-pos nil))
-              (while (re-search-forward " +" (line-end-position) t)
-                (setq time-passed (/ (* lilypond-pretty-print-size
-                                        (car (get-beat))) (cadr (get-beat)))
-                      current-pos (point))
-                (while (and (re-search-forward " +" (line-end-position) t)
-                            (= time-passed (/ (* lilypond-pretty-print-size
-                                                 (car (get-beat)))
-                                              (cadr (get-beat)))))
-                  (setq current-pos (point)))
-                (goto-char current-pos)
-                (when (and time-passed
-                           (< 0 (+ indentation-column
-                                   (- time-passed
-                                      ov-count
-                                      (current-column)))))
-                  (lilypond--make-overlay
-                   (+ -1 (point))
-                   (lilypond-string (- (+ ov-count (current-column))
-                                       indentation-column)
-                                    (+ indentation-column
-                                       (- time-passed ov-count
-                                          (current-column)))))
-                  (setq ov-count
-                        (+ indentation-column
-                           (- time-passed (current-column)))))))))))))
+            (forward-line)))
+        (while (re-search-forward "| *$" win-max t)
+          (save-excursion
+            (let ((line (line-number-at-pos))
+                  (local-count 0)
+                  (increment 4))
+              (back-to-indentation)
+              (let ((time-passed nil)
+                    (indentation-column (current-column))
+                    (ov-count 0)
+                    (current-pos nil))
+                (while (re-search-forward " +" (line-end-position) t)
+                  (setq time-passed (/ (* lilypond-pretty-print-size
+                                          (car (get-beat))) (cadr (get-beat)))
+                        current-pos (point))
+                  (while (and (re-search-forward " +" (line-end-position) t)
+                              (= time-passed (/ (* lilypond-pretty-print-size
+                                                   (car (get-beat)))
+                                                (cadr (get-beat)))))
+                    (setq current-pos (point)))
+                  (goto-char current-pos)
+                  (when (and time-passed
+                             (< 0 (+ indentation-column
+                                     (- time-passed
+                                        ov-count
+                                        (current-column)))))
+                    (lilypond--make-overlay
+                     (+ -1 (point))
+                     (lilypond-string (- (+ ov-count (current-column))
+                                         indentation-column)
+                                      (+ indentation-column
+                                         (- time-passed ov-count
+                                            (current-column)))))
+                    (setq ov-count
+                          (+ indentation-column
+                             (- time-passed (current-column))))))))))))))
 
 (defun lilypond-make-hex (col)
   (format "#%02X%02X%02X" (round col) (round (/ col 2)) (round col)))
@@ -173,13 +191,15 @@
   :init-value nil
   :lighter "| . |"
   :global nil
-  (lilypond-analyse-metrum)
   (if lilypond-pretty-beat-mode
       (progn
-        (add-hook 'pre-command-hook 'lilypond-beat-remove nil t)
-        (add-hook 'post-command-hook 'lilypond-beat-show nil t))
-    (remove-hook 'pre-command-hook 'lilypond-beat-remove t)
-    (remove-hook 'post-command-hook 'lilypond-beat-show t)))
+        (lilypond-analyse-metrum)
+        (lilypond-beat-show (point-min) (point-max))
+        (add-hook 'before-change-functions 'lilypond-beat-remove nil t)
+        (add-hook 'after-change-functions 'lilypond-beat-show nil t))
+    (lilypond-beat-remove (point-min) (point-max))
+    (remove-hook 'before-change-functions 'lilypond-beat-remove t)
+    (remove-hook 'before-change-functions 'lilypond-beat-show t)))
 
 (provide 'lilypond-pretty-print)
 
