@@ -79,24 +79,28 @@
             (setq local-count 1))
           (pop lilypond-measure-length))
         (setq lilypond-measure-length result))
-      (setq-local lilypond-pretty-print-size (/ (* lilypond-fill-column 144) lilypond-measure-length))
+      (setq-local lilypond-pretty-print-size
+                  (/ (* lilypond-fill-column 144) lilypond-measure-length))
       (while (re-search-forward "| *$" nil t)
         (save-excursion
           (back-to-indentation)
           (while (re-search-forward " +" (line-end-position) t)
             (when (and (not (looking-at "r"))
-                       (not (= time-passed (/ (* lilypond-pretty-print-size (car (get-beat)))
-                                              (cadr (get-beat)))))
+                       (not (= time-passed
+                               (/ (* lilypond-pretty-print-size
+                                     (car (get-beat))) (cadr (get-beat)))))
                        (< (/ (* lilypond-pretty-print-size (car (get-beat)))
                              (cadr (get-beat))) 128))
-              (setq time-passed (/ (* lilypond-pretty-print-size (car (get-beat)))
-                                   (cadr (get-beat))))
-              (aset times-used time-passed (+ 1 (elt times-used time-passed)))))
+              (setq time-passed (/ (* lilypond-pretty-print-size
+                                      (car (get-beat))) (cadr (get-beat))))
+              (aset times-used time-passed (+ 1 (elt times-used
+                                                     time-passed)))))
           (aset times-used time-passed (+ -1 (elt times-used time-passed)))))))
   (let ((beat-max 1))
     (mapc (lambda (x) (setq beat-max (max beat-max (* x x)))) times-used)
     (setq times-used
-          (map 'vector (lambda (y) (max 0 (/ (* 255 (* y y)) beat-max))) times-used))))
+          (map 'vector (lambda (y) (max 0 (/ (* 255 (* y y))
+                                             beat-max))) times-used))))
 
 (defun lilypond-beat-show ()
   (unless (active-minibuffer-window)
@@ -120,11 +124,12 @@
                   (ov-count 0)
                   (current-pos nil))
               (while (re-search-forward " +" (line-end-position) t)
-                (setq time-passed (/ (* lilypond-pretty-print-size (car (get-beat)))
-                                     (cadr (get-beat)))
+                (setq time-passed (/ (* lilypond-pretty-print-size
+                                        (car (get-beat))) (cadr (get-beat)))
                       current-pos (point))
                 (while (and (re-search-forward " +" (line-end-position) t)
-                            (= time-passed (/ (* lilypond-pretty-print-size (car (get-beat)))
+                            (= time-passed (/ (* lilypond-pretty-print-size
+                                                 (car (get-beat)))
                                               (cadr (get-beat)))))
                   (setq current-pos (point)))
                 (goto-char current-pos)
@@ -138,8 +143,7 @@
                    (lilypond-string (- (+ ov-count (current-column))
                                        indentation-column)
                                     (+ indentation-column
-                                       (- time-passed
-                                          ov-count
+                                       (- time-passed ov-count
                                           (current-column)))))
                   (setq ov-count
                         (+ indentation-column
