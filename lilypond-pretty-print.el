@@ -50,6 +50,7 @@
 (defun lilypond-analyse-metrum ()
   (interactive)
   (setq times-used (make-vector 128 0))
+  (setq lilypond-measure-length (make-vector 128 0))
   (let ((time-passed 0)
         (size lilypond-pretty-print-size))
     (save-excursion
@@ -67,7 +68,18 @@
               (setq time-passed (/ (* size 4 (car (get-beat)))
                                    (cadr (get-beat))))
               (aset times-used time-passed (+ 1 (elt times-used time-passed)))))
+          (aset lilypond-measure-length time-passed
+                (+ 1 (elt lilypond-measure-length time-passed)))
           (aset times-used time-passed (+ -1 (elt times-used time-passed)))))))
+  (let ((local-count 0)
+        (result-count 0)
+        (result 0))
+    (mapc (lambda (x) (when (>= x result)
+                        (setq result x
+                              result-count local-count))
+            (setq local-count (+ 1 local-count)))
+          lilypond-measure-length)
+    (setq lilypond-measure-length result-count))
   (let ((beat-max 1))
     (mapc (lambda (x) (setq beat-max (max beat-max (* x x)))) times-used)
     (setq times-used
