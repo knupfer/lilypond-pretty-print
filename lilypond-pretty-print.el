@@ -53,7 +53,14 @@
   (interactive)
   (unless (active-minibuffer-window)
     (save-excursion
-      (goto-char (window-start))
+      (let ((win-min (window-start)))
+        (goto-char (point-min))
+        (re-search-forward "| *$" nil t)
+        (if (< (point) win-min)
+            (goto-char win-min)
+          (if (> (point) (window-end))
+              (error "no bar")
+            (forward-line))))
       (while (re-search-forward "| *$" (window-end) t)
         (save-excursion
           (let ((line (line-number-at-pos))
@@ -63,10 +70,17 @@
             (let ((time-passed nil)
                   (indentation-column (current-column))
                   (ov-count 0)
-                  (size 16))
+                  (size 16)
+                  (current-pos nil))
               (while (re-search-forward " +" (line-end-position) t)
                 (setq time-passed (/ (* size 4 (car (get-beat)))
-                                     (cadr (get-beat))))
+                                     (cadr (get-beat)))
+                      current-pos (point))
+                (while (and (re-search-forward " +" (line-end-position) t)
+                            (= time-passed (/ (* size 4 (car (get-beat)))
+                                              (cadr (get-beat)))))
+                  (setq current-pos (point)))
+                (goto-char current-pos)
                 (when (and time-passed
                            (< 0 (+ indentation-column
                                    (- time-passed
