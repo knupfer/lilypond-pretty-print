@@ -49,7 +49,6 @@
     result))
 
 (defun lilypond-analyse-metrum ()
-  (interactive)
   (setq times-used (make-vector 128 0))
   (setq lilypond-measure-length nil)
   (let ((time-passed 0))
@@ -100,7 +99,6 @@
           (map 'vector (lambda (y) (max 0 (/ (* 255 (* y y)) beat-max))) times-used))))
 
 (defun lilypond-beat-show ()
-  (interactive)
   (unless (active-minibuffer-window)
     (save-excursion
       (let ((win-min (window-start)))
