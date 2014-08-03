@@ -20,7 +20,7 @@
 
 ;;; Code:
 
-
+(defvar lilypond-mode-line " ♫")
 (defvar lilypond-fill-column 72)
 
 (defun lilypond-beat-remove (&optional begin-of-change end-of-change zonk)
@@ -73,7 +73,6 @@
                          (cadr (get-beat))) lilypond-measure-length))
           (forward-char 1)))
       (sort lilypond-measure-length '<)
-      (setq debug123 lilypond-measure-length)
       (let ((old-length (car lilypond-measure-length))
             (local-count 0)
             (result-count 0)
@@ -92,6 +91,9 @@
       (setq-local lilypond-pretty-print-size
                   (/ (* lilypond-fill-column 144) lilypond-measure-length))
       (while (re-search-forward "| *$" nil t)
+        (when (= (random 10) 0)
+          (setq lilypond-mode-line (propertize (concat " scan: " (number-to-string (/ (* 100 (point)) (point-max))) "%%") 'face 'warning))
+          (redisplay))
         (save-excursion
           (back-to-indentation)
           (while (re-search-forward " +" (line-end-position) t)
@@ -106,6 +108,7 @@
               (aset times-used time-passed (+ 1 (elt times-used
                                                      time-passed)))))
           (aset times-used time-passed (+ -1 (elt times-used time-passed)))))))
+  (setq lilypond-mode-line " ♫")
   (let ((beat-max 1))
     (mapc (lambda (x) (setq beat-max (max beat-max (* x x)))) times-used)
     (setq times-used
@@ -132,6 +135,14 @@
               (error "no bar")
             (forward-line)))
         (while (re-search-forward "| *$" win-max t)
+          (when (and (eq zonk 1)
+                     (= (random 10) 0))
+            (redisplay)
+            (setq lilypond-mode-line
+                  (propertize (concat " draw: " (number-to-string
+                                                 (/ (* 100 (point))
+                                                    (point-max)))
+                                      "%%") 'face 'warning)))
           (save-excursion
             (let ((line (line-number-at-pos))
                   (local-count 0)
@@ -165,7 +176,9 @@
                                             (current-column)))))
                     (setq ov-count
                           (+ indentation-column
-                             (- time-passed (current-column))))))))))))))
+                             (- time-passed (current-column)))))))))))))
+  (when (eq zonk 1)
+    (setq lilypond-mode-line " ♫")))
 
 (defun lilypond-make-hex (col)
   (format "#%02X%02X%02X" (round col) (round (/ col 2)) (round col)))
@@ -189,12 +202,12 @@
 
 (define-minor-mode lilypond-pretty-beat-mode ()
   :init-value nil
-  :lighter "| . |"
+  :lighter (:eval lilypond-mode-line)
   :global nil
   (if lilypond-pretty-beat-mode
       (progn
         (lilypond-analyse-metrum)
-        (lilypond-beat-show (point-min) (point-max))
+        (lilypond-beat-show (point-min) (point-max) 1)
         (add-hook 'before-change-functions 'lilypond-beat-remove nil t)
         (add-hook 'after-change-functions 'lilypond-beat-show nil t))
     (lilypond-beat-remove (point-min) (point-max))
