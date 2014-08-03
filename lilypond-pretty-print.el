@@ -165,7 +165,7 @@
            ov 'category 'lily-pretty)
           (overlay-put ov prop symbol))))))
 
-(define-minor-mode lilypond-pretty-beat-mode
+(define-minor-mode lilypond-pretty-beat-mode ()
   :init-value nil
   :lighter "| . |"
   :global nil
