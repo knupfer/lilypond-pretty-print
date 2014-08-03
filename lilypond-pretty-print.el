@@ -41,8 +41,7 @@
       (let ((col (lilypond-make-hex (elt times-used
                                          (min (- (length times-used) 1)
                                               begin)))))
-        (setq result (concat result (propertize "•"
-                                                'face `'(:foreground ,col)))))
+        (setq result (concat result (eval `(propertize "|" 'face '(:foreground ,col))))))
       (setq begin (+ 1 begin)
             times (- times 1)))
     result))
@@ -50,12 +49,37 @@
 (defun lilypond-analyse-metrum ()
   (interactive)
   (setq times-used (make-vector 128 0))
-  (setq lilypond-measure-length (make-vector 128 0))
+  (setq lilypond-measure-length nil)
   (let ((time-passed 0)
         (size lilypond-pretty-print-size))
     (save-excursion
       (goto-char (point-min))
       (re-search-forward "| *$" nil t)
+      (save-excursion
+        (while (re-search-forward "| *$" nil t)
+          (forward-char -1)
+          (setq lilypond-measure-length
+                (cons (/ (* 144 (car (get-beat)))
+                         (cadr (get-beat))) lilypond-measure-length))
+          (forward-char 1)))
+      (sort lilypond-measure-length '<)
+      (let ((old-length 0)
+            (local-count 1)
+            (result-count 0)
+            (result))
+        (while lilypond-measure-length
+          (if (and (cadr lilypond-measure-length)
+                   (eq old-length (car lilypond-measure-length)))
+              (setq local-count (+ 1 local-count))
+            (when (> local-count result-count)
+              (setq result-count local-count
+                    result old-length)
+              (setq old-length (car lilypond-measure-length))
+              (setq local-count 1)))
+          (pop lilypond-measure-length))
+        (setq lilypond-measure-length result))
+      (setq lilypond-pretty-print-size (/ 2000 lilypond-measure-length)
+            size lilypond-pretty-print-size)
       (while (re-search-forward "| *$" nil t)
         (save-excursion
           (back-to-indentation)
@@ -68,18 +92,7 @@
               (setq time-passed (/ (* size 4 (car (get-beat)))
                                    (cadr (get-beat))))
               (aset times-used time-passed (+ 1 (elt times-used time-passed)))))
-          (aset lilypond-measure-length time-passed
-                (+ 1 (elt lilypond-measure-length time-passed)))
           (aset times-used time-passed (+ -1 (elt times-used time-passed)))))))
-  (let ((local-count 0)
-        (result-count 0)
-        (result 0))
-    (mapc (lambda (x) (when (>= x result)
-                        (setq result x
-                              result-count local-count))
-            (setq local-count (+ 1 local-count)))
-          lilypond-measure-length)
-    (setq lilypond-measure-length result-count))
   (let ((beat-max 1))
     (mapc (lambda (x) (setq beat-max (max beat-max (* x x)))) times-used)
     (setq times-used
