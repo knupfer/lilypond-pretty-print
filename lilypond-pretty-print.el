@@ -21,7 +21,6 @@
 ;;; Code:
 
 
-(defvar lilypond-pretty-print-size 16)
 (defvar lilypond-fill-column 72)
 
 (defun lilypond-beat-remove ()
@@ -43,7 +42,7 @@
                                          (min (- (length times-used) 1)
                                               begin)))))
         (setq result (concat result
-                             (eval `(propertize "|"
+                             (eval `(propertize "│"
                                                 'face '(:foreground ,col))))))
       (setq begin (+ 1 begin)
             times (- times 1)))
@@ -53,8 +52,7 @@
   (interactive)
   (setq times-used (make-vector 128 0))
   (setq lilypond-measure-length nil)
-  (let ((time-passed 0)
-        (size lilypond-pretty-print-size))
+  (let ((time-passed 0))
     (save-excursion
       (goto-char (point-min))
       (re-search-forward "| *$" nil t)
@@ -70,30 +68,29 @@
       (let ((old-length (car lilypond-measure-length))
             (local-count 0)
             (result-count 0)
-            (result))
+            (result 144))
         (while lilypond-measure-length
           (if (and (cadr lilypond-measure-length)
                    (eq old-length (car lilypond-measure-length)))
               (setq local-count (+ 1 local-count))
             (when (> local-count result-count)
               (setq result-count local-count
-                    result old-length)
-              (setq old-length (car lilypond-measure-length))
-              (setq local-count 1)))
+                    result old-length))
+            (setq old-length (car lilypond-measure-length))
+            (setq local-count 1))
           (pop lilypond-measure-length))
         (setq lilypond-measure-length result))
-      (setq lilypond-pretty-print-size (/ (* lilypond-fill-column 144) lilypond-measure-length)
-            size lilypond-pretty-print-size)
+      (setq-local lilypond-pretty-print-size (/ (* lilypond-fill-column 144) lilypond-measure-length))
       (while (re-search-forward "| *$" nil t)
         (save-excursion
           (back-to-indentation)
           (while (re-search-forward " +" (line-end-position) t)
             (when (and (not (looking-at "r"))
-                       (not (= time-passed (/ (* size (car (get-beat)))
+                       (not (= time-passed (/ (* lilypond-pretty-print-size (car (get-beat)))
                                               (cadr (get-beat)))))
-                       (< (/ (* size (car (get-beat)))
+                       (< (/ (* lilypond-pretty-print-size (car (get-beat)))
                              (cadr (get-beat))) 128))
-              (setq time-passed (/ (* size (car (get-beat)))
+              (setq time-passed (/ (* lilypond-pretty-print-size (car (get-beat)))
                                    (cadr (get-beat))))
               (aset times-used time-passed (+ 1 (elt times-used time-passed)))))
           (aset times-used time-passed (+ -1 (elt times-used time-passed)))))))
@@ -123,14 +120,13 @@
             (let ((time-passed nil)
                   (indentation-column (current-column))
                   (ov-count 0)
-                  (size lilypond-pretty-print-size)
                   (current-pos nil))
               (while (re-search-forward " +" (line-end-position) t)
-                (setq time-passed (/ (* size (car (get-beat)))
+                (setq time-passed (/ (* lilypond-pretty-print-size (car (get-beat)))
                                      (cadr (get-beat)))
                       current-pos (point))
                 (while (and (re-search-forward " +" (line-end-position) t)
-                            (= time-passed (/ (* size (car (get-beat)))
+                            (= time-passed (/ (* lilypond-pretty-print-size (car (get-beat)))
                                               (cadr (get-beat)))))
                   (setq current-pos (point)))
                 (goto-char current-pos)
@@ -175,6 +171,7 @@
   :init-value nil
   :lighter "| . |"
   :global nil
+  (lilypond-analyse-metrum)
   (if lilypond-pretty-beat-mode
       (progn
         (add-hook 'pre-command-hook 'lilypond-beat-remove nil t)
