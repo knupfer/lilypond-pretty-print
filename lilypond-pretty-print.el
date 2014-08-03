@@ -22,6 +22,7 @@
 
 
 (defvar lilypond-pretty-print-size 16)
+(defvar lilypond-fill-column 72)
 
 (defun lilypond-beat-remove ()
   (dolist (ov (lilypond-beat--active-overlays))
@@ -41,7 +42,9 @@
       (let ((col (lilypond-make-hex (elt times-used
                                          (min (- (length times-used) 1)
                                               begin)))))
-        (setq result (concat result (eval `(propertize "|" 'face '(:foreground ,col))))))
+        (setq result (concat result
+                             (eval `(propertize "|"
+                                                'face '(:foreground ,col))))))
       (setq begin (+ 1 begin)
             times (- times 1)))
     result))
@@ -63,8 +66,9 @@
                          (cadr (get-beat))) lilypond-measure-length))
           (forward-char 1)))
       (sort lilypond-measure-length '<)
-      (let ((old-length 0)
-            (local-count 1)
+      (setq debug123 lilypond-measure-length)
+      (let ((old-length (car lilypond-measure-length))
+            (local-count 0)
             (result-count 0)
             (result))
         (while lilypond-measure-length
@@ -78,18 +82,18 @@
               (setq local-count 1)))
           (pop lilypond-measure-length))
         (setq lilypond-measure-length result))
-      (setq lilypond-pretty-print-size (/ 2000 lilypond-measure-length)
+      (setq lilypond-pretty-print-size (/ (* lilypond-fill-column 144) lilypond-measure-length)
             size lilypond-pretty-print-size)
       (while (re-search-forward "| *$" nil t)
         (save-excursion
           (back-to-indentation)
           (while (re-search-forward " +" (line-end-position) t)
             (when (and (not (looking-at "r"))
-                       (not (= time-passed (/ (* size 4 (car (get-beat)))
+                       (not (= time-passed (/ (* size (car (get-beat)))
                                               (cadr (get-beat)))))
-                       (< (/ (* size 4 (car (get-beat)))
+                       (< (/ (* size (car (get-beat)))
                              (cadr (get-beat))) 128))
-              (setq time-passed (/ (* size 4 (car (get-beat)))
+              (setq time-passed (/ (* size (car (get-beat)))
                                    (cadr (get-beat))))
               (aset times-used time-passed (+ 1 (elt times-used time-passed)))))
           (aset times-used time-passed (+ -1 (elt times-used time-passed)))))))
@@ -122,11 +126,11 @@
                   (size lilypond-pretty-print-size)
                   (current-pos nil))
               (while (re-search-forward " +" (line-end-position) t)
-                (setq time-passed (/ (* size 4 (car (get-beat)))
+                (setq time-passed (/ (* size (car (get-beat)))
                                      (cadr (get-beat)))
                       current-pos (point))
                 (while (and (re-search-forward " +" (line-end-position) t)
-                            (= time-passed (/ (* size 4 (car (get-beat)))
+                            (= time-passed (/ (* size (car (get-beat)))
                                               (cadr (get-beat)))))
                   (setq current-pos (point)))
                 (goto-char current-pos)
