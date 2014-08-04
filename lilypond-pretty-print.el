@@ -60,8 +60,8 @@
     result))
 
 (defun lilypond-analyse-metrum ()
-  (setq times-used (make-vector 128 0))
-  (setq lilypond-measure-length nil)
+  (setq-local times-used (make-vector 128 0))
+  (setq-local lilypond-measure-length nil)
   (let ((time-passed 0))
     (save-excursion
       (goto-char (point-min))
@@ -93,7 +93,11 @@
                   (/ (* lilypond-fill-column 144) lilypond-measure-length))
       (while (re-search-forward "| *$" nil t)
         (when (= (random 20) 0)
-          (setq lilypond-mode-line (propertize (concat " scan: " (number-to-string (/ (* 100 (point)) (point-max))) "%%") 'face 'warning))
+          (setq lilypond-mode-line
+                (propertize (concat " scan: "
+                                    (number-to-string (/ (* 100 (point))
+                                                         (point-max))) "%%")
+                            'face 'warning))
           (redisplay))
         (save-excursion
           (back-to-indentation)
@@ -108,7 +112,8 @@
                                       (car (get-beat))) (cadr (get-beat))))
               (aset times-used time-passed (+ 1 (elt times-used
                                                      time-passed)))))
-          (aset times-used time-passed (+ -1 (elt times-used time-passed)))))))
+          (aset times-used time-passed (+ -1 (elt times-used
+                                                  time-passed)))))))
   (setq lilypond-mode-line " ♫")
   (let ((beat-max 1))
     (mapc (lambda (x) (setq beat-max (max beat-max (* x x)))) times-used)
@@ -144,40 +149,76 @@
                                                  (/ (* 100 (point))
                                                     (point-max)))
                                       "%%") 'face 'warning)))
+
+
           (save-excursion
-            (let ((line (line-number-at-pos))
-                  (local-count 0)
-                  (increment 4))
-              (back-to-indentation)
-              (let ((time-passed nil)
-                    (indentation-column (current-column))
-                    (ov-count 0)
-                    (current-pos nil))
-                (while (re-search-forward " +" (line-end-position) t)
-                  (setq time-passed (/ (* lilypond-pretty-print-size
-                                          (car (get-beat))) (cadr (get-beat)))
-                        current-pos (point))
-                  (while (and (re-search-forward " +" (line-end-position) t)
-                              (= time-passed (/ (* lilypond-pretty-print-size
-                                                   (car (get-beat)))
-                                                (cadr (get-beat)))))
-                    (setq current-pos (point)))
-                  (goto-char current-pos)
-                  (when (and time-passed
-                             (< 0 (+ indentation-column
-                                     (- time-passed
-                                        ov-count
-                                        (current-column)))))
-                    (lilypond--make-overlay
-                     (+ -1 (point))
-                     (lilypond-string (- (+ ov-count (current-column))
-                                         indentation-column)
-                                      (+ indentation-column
-                                         (- time-passed ov-count
+            (goto-char (match-beginning 0))
+            (if (and (> (cadr (get-beat)) 0)
+                     (> (car (get-beat)) 0)
+                     (eq lilypond-pretty-print-size (/ (* 144 lilypond-fill-column) (/  (* 144 (car (get-beat)))
+                                                                                        (cadr (get-beat))))))
+                (let ((line (line-number-at-pos))
+                      (local-count 0))
+                  (back-to-indentation)
+                  (let ((time-passed nil)
+                        (indentation-column (current-column))
+                        (ov-count 0)
+                        (current-pos nil))
+                    (while (re-search-forward " +" (line-end-position) t)
+                      (setq time-passed (/ (* lilypond-pretty-print-size
+                                              (car (get-beat))) (cadr (get-beat)))
+                            current-pos (point))
+                      (while (and (re-search-forward " +" (line-end-position) t)
+                                  (= time-passed (/ (* lilypond-pretty-print-size
+                                                       (car (get-beat)))
+                                                    (cadr (get-beat)))))
+                        (setq current-pos (point)))
+                      (goto-char current-pos)
+                      (when (and time-passed
+                                 (< 0 (+ indentation-column
+                                         (- time-passed
+                                            ov-count
                                             (current-column)))))
-                    (setq ov-count
-                          (+ indentation-column
-                             (- time-passed (current-column)))))))))))))
+                        (lilypond--make-overlay
+                         (+ -1 (point))
+                         (lilypond-string (- (+ ov-count (current-column))
+                                             indentation-column)
+                                          (+ indentation-column
+                                             (- time-passed ov-count
+                                                (current-column)))))
+                        (setq ov-count
+                              (+ indentation-column
+                                 (- time-passed (current-column))))))))
+              (let ((current-pos (point))
+                    (current-col (current-column))
+                    (err-string nil)
+                    (beat-length (/ (* 144 (car (get-beat)))
+                                    (cadr (get-beat))))
+                    (time-passed (/ (* lilypond-pretty-print-size
+                                       lilypond-measure-length) 144)))
+                (if (> beat-length lilypond-measure-length)
+                    (setq err-string (propertize
+                                      (make-string
+                                       (min 7 (max 1 (round (* 5 (- (/ (* 1.0 beat-length)
+                                                                       lilypond-measure-length)
+                                                                    1)))))
+                                       (string-to-char "+"))
+                                      'face '(:foreground "green")))
+                  (setq err-string (propertize
+                                    (make-string
+                                     (min 7 (max 1 (round (* 5 (- (/ (* 1.0 lilypond-measure-length)
+                                                                     (max 1 beat-length))
+                                                                  1)))))
+                                     (string-to-char "-"))
+                                    'face '(:foreground "red"))))
+                (back-to-indentation)
+                (lilypond--make-overlay
+                 (+ -1 current-pos)
+                 (concat
+                  (lilypond-string (- current-col (current-column))
+                                   (+ (current-column)
+                                      (- time-passed current-col (length err-string))))
+                  err-string)))))))))
   (when (eq zonk 1)
     (setq lilypond-mode-line " ♫")))
 
@@ -186,11 +227,9 @@
 
 (defun lilypond--make-overlay (line symbol)
   "draw line at (line, col)"
-  (setq foo-test symbol)
   (let ((original-pos (point))
         (color (lilypond-make-hex (random 200)))
         ov prop)
-
     (save-excursion
       (goto-char line)
       (when (looking-at " ")
