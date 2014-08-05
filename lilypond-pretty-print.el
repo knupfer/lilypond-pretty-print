@@ -129,7 +129,8 @@
             (let ((inhibit-quit t))
               (save-excursion
                 (back-to-indentation)
-                (while (re-search-forward " +" (line-end-position) t)
+                (while (re-search-forward "\\(<+[^<>]*>+\\)? +"
+                                          (line-end-position) t)
                   (when (and (not (looking-at "r"))
                              (not (= time-passed
                                      (/ (* lilypond-pretty-print-size
