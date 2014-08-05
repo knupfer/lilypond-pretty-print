@@ -29,8 +29,8 @@
 (defvar lilypond-measure-length nil)
 (defvar lilypond-measure-length-list nil)
 (defvar lilypond-mode-line " ♫")
-(defvar lilypond-fill-column 72)
-(defvar lilypond-pretty-print-size)
+(defvar lilypond-fill-column 64)
+(defvar lilypond-pretty-print-size 144)
 (defvar lilypond-scan-position nil)
 (defvar times-used)
 (defvar times-used-tmp)
@@ -76,7 +76,8 @@
   (if (not lilypond-pretty-beat-mode)
       (progn
         (cancel-timer lilypond-timer-3)
-        (setq lilypond-timer-3 nil))
+        (setq lilypond-timer-3 nil)
+        (setq lilypond-analyse-pos 1))
     (while-no-input
       (save-excursion
         (goto-char lilypond-analyse-pos)
@@ -85,9 +86,9 @@
           (while (re-search-forward "| *\\(%.*\\)*$" nil t)
             (save-excursion
               (goto-char (match-beginning 0))
-              (setq lilypond-measure-length-list
-                    (cons (/ (* 144 (car (get-beat)))
-                             (cadr (get-beat))) lilypond-measure-length-list)))
+              (setq-local lilypond-measure-length-list
+                          (cons (/ (* 144 (car (get-beat)))
+                                   (cadr (get-beat))) lilypond-measure-length-list)))
             (setq-local lilypond-analyse-pos (point))))
         (sort lilypond-measure-length-list '<)
         (let ((old-length (car lilypond-measure-length-list))
@@ -105,12 +106,12 @@
               (setq old-length (car lilypond-measure-length-list))
               (setq local-count 1))
             (pop lilypond-measure-length-list))
-          (setq lilypond-measure-length result)
+          (setq-local lilypond-measure-length result)
           (setq-local lilypond-pretty-print-size
                       (/ (* lilypond-fill-column 144) lilypond-measure-length))
           (setq-local lilypond-analyse-pos 1)
           (cancel-timer lilypond-timer-3)
-          (setq-local lilypond-timer-3 nil))))))
+          (setq lilypond-timer-3 nil))))))
 
 (defun lilypond-scan-for-beats ()
   (if (not lilypond-pretty-beat-mode)
@@ -151,7 +152,7 @@
                                                            beat-max))) times-used-tmp))
             (setq-local times-used-tmp (make-vector 128 0))
             (cancel-timer lilypond-timer-1)
-            (setq-local lilypond-timer-1 nil)))))))
+            (setq lilypond-timer-1 nil)))))))
 
 (defun lilypond-timers (&optional foo bar baff)
   (unless lilypond-timer-4
@@ -162,7 +163,7 @@
           (run-with-idle-timer 0.1 t 'lilypond-analyse-metrum)))
   (unless lilypond-timer-1
     (setq lilypond-timer-1
-          (run-with-idle-timer 0.1 t 'lilypond-scan-for-beats)))
+          (run-with-idle-timer 0.25 t 'lilypond-scan-for-beats)))
   (unless lilypond-timer-2
     (setq lilypond-timer-2
           (run-with-idle-timer 0.4 t 'lilypond-beat-show 1 (point-max) 2))))
@@ -193,7 +194,7 @@
                    t)))))))
       (let ((inhibit-quit t))
         (cancel-timer lilypond-timer-4)
-        (setq-local lilypond-timer-4 nil)))))
+        (setq lilypond-timer-4 nil)))))
 
 (defun lilypond-beat-show (&optional begin-of-change end-of-change zonk)
   (if (not lilypond-pretty-beat-mode)
@@ -222,9 +223,11 @@
             (when (> win-max (point))
               (while (re-search-forward "| *\\(%.*\\)*$" win-max t)
                 (let ((inhibit-quit t))
-                  (when (eq zonk 2)
-                    (setq-local lilypond-draw-pos (point)))
-                  (lilypond-beat-remove (point) (point))
+                  (if (eq zonk 2)
+                      (progn
+                        (lilypond-beat-remove (+ 1 lilypond-draw-pos) (point))
+                        (setq-local lilypond-draw-pos (point)))
+                    (lilypond-beat-remove (point) (point)))
                   (save-excursion
                     (goto-char (match-beginning 0))
                     (if (and (> (cadr (get-beat)) 0)
@@ -298,7 +301,7 @@
               (when (eq zonk 2)
                 (setq-local lilypond-draw-pos (point-min))
                 (cancel-timer lilypond-timer-2)
-                (setq-local lilypond-timer-2 nil)))))))))
+                (setq lilypond-timer-2 nil)))))))))
 
 (defun lilypond-make-hex (col)
   (format "#%02X%02X%02X" (round col) (round (/ col 2)) (round col)))
