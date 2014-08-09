@@ -153,7 +153,10 @@
                                                            beat-max))) times-used-tmp))
             (setq-local times-used-tmp (make-vector 128 0))
             (cancel-timer lilypond-timer-1)
-            (setq lilypond-timer-1 nil)))))))
+            (setq lilypond-timer-1 nil)
+            (unless lilypond-timer-2
+              (setq lilypond-timer-2
+                    (run-with-idle-timer 0.4 t 'lilypond-beat-show 1 (point-max) 2)))))))))
 
 (defun lilypond-timers (&optional foo bar baff)
   (unless lilypond-timer-4
@@ -164,10 +167,7 @@
           (run-with-idle-timer 0.1 t 'lilypond-analyse-metrum)))
   (unless lilypond-timer-1
     (setq lilypond-timer-1
-          (run-with-idle-timer 0.25 t 'lilypond-scan-for-beats)))
-  (unless lilypond-timer-2
-    (setq lilypond-timer-2
-          (run-with-idle-timer 0.4 t 'lilypond-beat-show 1 (point-max) 2))))
+          (run-with-idle-timer 0.25 t 'lilypond-scan-for-beats))))
 
 (defun lilypond-get-measure (&optional begin-of-change end-of-change zonk)
   (if (not lilypond-pretty-beat-mode)
