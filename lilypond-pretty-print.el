@@ -320,17 +320,18 @@
   :init-value nil
   :lighter (:eval lilypond-mode-line)
   :global nil
-  (if lilypond-pretty-beat-mode
-      (progn
-        (setq-local times-used (make-vector 128 0))
-        (setq-local times-used-tmp (make-vector 128 0))
-        (lilypond-timers)
-        (add-hook 'after-change-functions 'lilypond-beat-show nil t)
-        (add-hook 'after-change-functions 'lilypond-timers nil t))
-    (lilypond-beat-remove (point-min) (point-max))
-    (lilypond-beat-remove (point-min) (point-max) nil t)
-    (remove-hook 'after-change-functions 'lilypond-beat-show t)
-    (remove-hook 'after-change-functions 'lilypond-timers t)))
+  (when (not (equal (buffer-name) " *temp*"))
+    (if lilypond-pretty-beat-mode
+        (progn
+          (setq-local times-used (make-vector 128 0))
+          (setq-local times-used-tmp (make-vector 128 0))
+          (lilypond-timers)
+          (add-hook 'after-change-functions 'lilypond-beat-show nil t)
+          (add-hook 'after-change-functions 'lilypond-timers nil t))
+      (lilypond-beat-remove (point-min) (point-max))
+      (lilypond-beat-remove (point-min) (point-max) nil t)
+      (remove-hook 'after-change-functions 'lilypond-beat-show t)
+      (remove-hook 'after-change-functions 'lilypond-timers t))))
 
 (provide 'lilypond-pretty-print)
 
