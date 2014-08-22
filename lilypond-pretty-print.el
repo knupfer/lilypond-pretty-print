@@ -84,11 +84,14 @@
         (re-search-forward "| *\\(%.*\\)*$" nil t)
         (save-excursion
           (while (re-search-forward "| *\\(%.*\\)*$" nil t)
-            (save-excursion
-              (goto-char (match-beginning 0))
-              (setq-local lilypond-measure-length-list
-                          (cons (/ (* 144 (car (get-beat)))
-                                   (cadr (get-beat))) lilypond-measure-length-list)))
+            (when (or (not (eq major-mode 'org-mode))
+                      (equal "lilypond" (car (org-babel-get-src-block-info))))
+              (save-excursion
+                (goto-char (match-beginning 0))
+                (setq-local lilypond-measure-length-list
+                            (cons (/ (* 144 (car (get-beat)))
+                                     (cadr (get-beat)))
+                                  lilypond-measure-length-list))))
             (setq-local lilypond-analyse-pos (point))))
         (sort lilypond-measure-length-list '<)
         (let ((old-length (car lilypond-measure-length-list))
@@ -189,8 +192,7 @@
                 (when (not (match-string 1))
                   (lilypond--make-overlay
                    (match-beginning 0)
-                   (propertize (concat " " (number-to-string
-                                            current-measure))
+                   (propertize (format "%3s" current-measure)
                                'face '(:foreground "blue"))
                    t)))))))
       (let ((inhibit-quit t))
@@ -310,11 +312,13 @@
 (defun lilypond--make-overlay (ov-pos symbol &optional measure-num)
   (save-excursion
     (goto-char ov-pos)
-    (let ((ov (make-overlay (+ 1 (point)) (+ 1 (point)))))
-      (when (and (or (looking-at "|") (looking-at " ")) ov)
-        (overlay-put
-         ov 'category (if measure-num 'lily-measure 'lily-pretty))
-        (overlay-put ov 'after-string symbol)))))
+    (when (or (not (eq major-mode 'org-mode))
+              (equal "lilypond" (car (org-babel-get-src-block-info))))
+      (let ((ov (make-overlay (+ 1 (point)) (+ 1 (point)))))
+        (when (and (or (looking-at "|") (looking-at " ")) ov)
+          (overlay-put
+           ov 'category (if measure-num 'lily-measure 'lily-pretty))
+          (overlay-put ov 'after-string symbol))))))
 
 (define-minor-mode lilypond-pretty-beat-mode ()
   :init-value nil
@@ -336,3 +340,6 @@
 (provide 'lilypond-pretty-print)
 
 ;;; lilypond-pretty-print.el ends here
+
+
+
